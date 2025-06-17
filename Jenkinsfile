@@ -29,7 +29,7 @@ pipeline {
             steps {
                 dir('app') {
                     script {
-                        sh 'docker build -t ${APP_IMAGE} .'
+                        sh "docker build -t ${APP_IMAGE} ."
                     }
                 }
             }
@@ -39,7 +39,7 @@ pipeline {
             steps {
                 dir('tests') {
                     script {
-                        sh 'docker build -t ${TEST_IMAGE} .'
+                        sh "docker build -t ${TEST_IMAGE} ."
                     }
                 }
             }
@@ -48,22 +48,30 @@ pipeline {
         stage('Start Application Container') {
             steps {
                 script {
-                    sh '''
+                    sh """
                         echo "Cleaning up any old containers on port 3000..."
                         docker rm -f markdown-app || true
 
-                        USED_CONTAINER=$(docker ps --filter "publish=3000" -q)
-                        if [ ! -z "$USED_CONTAINER" ]; then
-                            docker stop $USED_CONTAINER || true
-                            docker rm $USED_CONTAINER || true
+                        USED_CONTAINER=\$(docker ps --filter "publish=3000" -q)
+                        if [ ! -z "\$USED_CONTAINER" ]; then
+                            docker stop \$USED_CONTAINER || true
+                            docker rm \$USED_CONTAINER || true
                         fi
 
                         echo "🚀 Starting application container..."
                         docker run -d --name markdown-app -p 3000:3000 ${APP_IMAGE}
 
                         echo "⏳ Waiting for application to become available..."
-                        sleep 10
-                    '''
+                        for i in {1..10}; do
+                            if curl -s http://localhost:3000 > /dev/null; then
+                                echo "✅ App is available."
+                                break
+                            else
+                                echo "⏳ Still waiting for app..."
+                                sleep 2
+                            fi
+                        done
+                    """
                 }
             }
         }
@@ -71,10 +79,10 @@ pipeline {
         stage('Run Selenium Tests') {
             steps {
                 script {
-                    sh '''
+                    sh """
                         echo "🧪 Running Selenium tests against app..."
                         docker run --rm --network host ${TEST_IMAGE}
-                    '''
+                    """
                 }
             }
         }
@@ -82,10 +90,10 @@ pipeline {
 
     post {
         success {
-            echo 'Mark-Down-Blog application and tests ran successfully.'
+            echo '✅ Mark-Down-Blog application and tests ran successfully.'
         }
         failure {
-            echo 'Mark-Down-Blog pipeline failed.'
+            echo '❌ Mark-Down-Blog pipeline failed.'
         }
     }
 }
