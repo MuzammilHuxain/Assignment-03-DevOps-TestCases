@@ -19,7 +19,7 @@ options.add_argument("--user-data-dir=/tmp/chrome-user-data")  # Avoid session c
 # ✅ Initialize WebDriver
 # ---------------------
 driver = webdriver.Chrome(options=options)
-driver.get("http://localhost:3000")
+driver.get("http://3.80.55.165:3000")
 driver.set_window_size(1920, 1080)
 
 # ---------------------
