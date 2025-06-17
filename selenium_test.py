@@ -1,19 +1,34 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 import time
 
-# Initialize WebDriver
-driver = webdriver.Chrome()
-driver.get("http://localhost:3000")
-driver.maximize_window()
+# ---------------------
+# ✅ Setup Chrome Options
+# ---------------------
+options = Options()
+options.add_argument("--headless")  # Headless mode for Jenkins
+options.add_argument("--no-sandbox")  # Required for Docker
+options.add_argument("--disable-dev-shm-usage")  # Avoid limited /dev/shm in Docker
+options.add_argument("--disable-gpu")
+options.add_argument("--window-size=1920x1080")
+options.add_argument("--user-data-dir=/tmp/chrome-user-data")  # Avoid session conflicts
 
-# Summary counters
+# ---------------------
+# ✅ Initialize WebDriver
+# ---------------------
+driver = webdriver.Chrome(options=options)
+driver.get("http://localhost:3000")
+driver.set_window_size(1920, 1080)
+
+# ---------------------
+# ✅ Summary Counters
+# ---------------------
 passed = 0
 failed = 0
 results = []
 
-# Helper functions
 def print_result(name, success):
     global passed, failed
     if success:
@@ -39,14 +54,14 @@ def signup(full_name, email, password):
     driver.find_element(By.TAG_NAME, "form").submit()
 
 # -------------------
-# Test Case Functions
+# ✅ Test Cases
 # -------------------
 def test_signup():
     try:
         signup("Test User", "testuser@example.com", "password123")
         time.sleep(2)
         print_result("Signup a new user", True)
-    except Exception as e:
+    except:
         print_result("Signup a new user", False)
 
 def test_logout():
@@ -136,7 +151,7 @@ def test_protected_access():
         print_result("Protected route access without login", False)
 
 # -------------------
-# Run Test Cases
+# ✅ Run Test Cases
 # -------------------
 print("🚀 Running Selenium Test Cases...\n")
 
@@ -152,7 +167,7 @@ test_logout_again()
 test_protected_access()
 
 # -------------------
-# Summary
+# ✅ Test Summary
 # -------------------
 print("\n📋 Test Summary:")
 for line in results:
@@ -162,4 +177,3 @@ print(f"\n✅ Passed: {passed}")
 print(f"❌ Failed: {failed}")
 
 driver.quit()
-
