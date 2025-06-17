@@ -6,6 +6,7 @@ pipeline {
         TEST_REPO = 'https://github.com/MuzammilHuxain/Assignment-03-DevOps-TestCases'
         APP_IMAGE = 'markdown-blog-app'
         TEST_IMAGE = 'markdown-blog-tests'
+        DOCKER_NETWORK = 'markdown_net'
     }
 
     stages {
@@ -21,6 +22,14 @@ pipeline {
             steps {
                 dir('tests') {
                     git branch: 'main', url: "${TEST_REPO}"
+                }
+            }
+        }
+
+        stage('Create Docker Network') {
+            steps {
+                script {
+                    sh "docker network inspect ${DOCKER_NETWORK} >/dev/null 2>&1 || docker network create ${DOCKER_NETWORK}"
                 }
             }
         }
@@ -49,25 +58,19 @@ pipeline {
             steps {
                 script {
                     sh """
-                        echo "Cleaning up any old containers on port 3000..."
+                        echo "Cleaning up any old containers..."
                         docker rm -f markdown-app || true
 
-                        USED_CONTAINER=\$(docker ps --filter "publish=3000" -q)
-                        if [ ! -z "\$USED_CONTAINER" ]; then
-                            docker stop \$USED_CONTAINER || true
-                            docker rm \$USED_CONTAINER || true
-                        fi
-
                         echo "🚀 Starting application container..."
-                        docker run -d --name markdown-app -p 3000:3000 ${APP_IMAGE}
+                        docker run -d --name markdown-app --network ${DOCKER_NETWORK} ${APP_IMAGE}
 
                         echo "⏳ Waiting for application to become available..."
                         for i in {1..10}; do
-                            if curl -s http://localhost:3000 > /dev/null; then
+                            if docker run --rm --network ${DOCKER_NETWORK} curlimages/curl:7.85.0 curl -s markdown-app:3000 > /dev/null; then
                                 echo "✅ App is available."
                                 break
                             else
-                                echo "⏳ Still waiting for app..."
+                                echo "⏳ Still waiting..."
                                 sleep 2
                             fi
                         done
@@ -81,7 +84,7 @@ pipeline {
                 script {
                     sh """
                         echo "🧪 Running Selenium tests against app..."
-                        docker run --rm --network host ${TEST_IMAGE}
+                        docker run --rm --network ${DOCKER_NETWORK} ${TEST_IMAGE}
                     """
                 }
             }
