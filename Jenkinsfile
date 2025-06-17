@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        APP_REPO = 'https://github.com/your-username/Mark-Down-Blog.git'
-        TEST_REPO = 'https://github.com/your-username/Mark-Down-Blog-Tests.git'
+        APP_REPO = 'https://github.com/MuzammilHuxain/Assignment-03-DevOps'
+        TEST_REPO = 'https://github.com/MuzammilHuxain/Assignment-03-DevOps-TestCases'
         APP_IMAGE = 'markdown-blog-app'
         TEST_IMAGE = 'markdown-blog-tests'
     }
