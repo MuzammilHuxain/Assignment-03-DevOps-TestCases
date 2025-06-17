@@ -1,87 +1,91 @@
-// Jenkinsfile
-
 pipeline {
     agent any
 
     environment {
+        APP_REPO = 'https://github.com/MuzammilHuxain/Assignment-03-DevOps'
+        TEST_REPO = 'https://github.com/MuzammilHuxain/Assignment-03-DevOps-TestCases'
         APP_IMAGE = 'markdown-blog-app'
         TEST_IMAGE = 'markdown-blog-tests'
-        DOCKER_NETWORK = 'markdown_test_network'
     }
 
     stages {
-        stage('Clean Workspace') {
+        stage('Checkout Application') {
             steps {
-                cleanWs()
-            }
-        }
-
-        stage('Build App Image') {
-            steps {
-                script {
-                    echo "Building Docker image for the Node.js application..."
-                    // This command is correct based on your folder structure (Dockerfile in root)
-                    sh "docker build -t ${APP_IMAGE} -f Dockerfile ."
+                dir('app') {
+                    git branch: 'main', url: "${APP_REPO}"
                 }
             }
         }
 
-        stage('Build Test Image') {
+        stage('Checkout Tests') {
             steps {
-                script {
-                    echo "Building Docker image for Selenium tests..."
-                    // CORRECTED: Pointing to the 'Test Cases' directory for Dockerfile and build context
-                    // ASSUMPTION: Your Selenium Dockerfile is named 'Dockerfile.selenium'
-                    //             and is located inside the 'Test Cases' directory.
-                    //             Also, selenium_test.py and requirements.txt are in 'Test Cases'.
-                    sh "docker build -t ${TEST_IMAGE} -f 'Test Cases/Dockerfile.selenium' 'Test Cases/'"
+                dir('tests') {
+                    git branch: 'main', url: "${TEST_REPO}"
                 }
             }
         }
 
-        stage('Run End-to-End Tests') {
+        stage('Build Application Docker Image') {
             steps {
-                script {
-                    echo "Setting up Docker network and running tests..."
-
-                    sh "docker rm -f ${APP_IMAGE} || true"
-                    sh "docker network rm ${DOCKER_NETWORK} || true"
-
-                    sh "docker network create ${DOCKER_NETWORK}"
-
-                    try {
-                        sh "docker run -d --name ${APP_IMAGE} --network ${DOCKER_NETWORK} -p 3000:3000 ${APP_IMAGE}"
-
-                        echo "Waiting for Node.js app to start..."
-                        sleep 15
-
-                        // Ensure your selenium_test.py uses "http://markdown-blog-app:3000"
-                        sh "docker run --rm --network ${DOCKER_NETWORK} ${TEST_IMAGE}"
-
-                    } catch (Exception e) {
-                        echo "Tests failed: ${e.message}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    } finally {
-                        echo "Cleaning up Docker resources..."
-                        sh "docker stop ${APP_IMAGE} || true"
-                        sh "docker rm ${APP_IMAGE} || true"
-                        sh "docker network rm ${DOCKER_NETWORK} || true"
+                dir('app') {
+                    script {
+                        sh 'docker build -t ${APP_IMAGE} .'
                     }
+                }
+            }
+        }
+
+        stage('Build Test Docker Image') {
+            steps {
+                dir('tests') {
+                    script {
+                        sh 'docker build -t ${TEST_IMAGE} .'
+                    }
+                }
+            }
+        }
+
+        stage('Start Application Container') {
+            steps {
+                script {
+                    sh '''
+                        echo "Cleaning up any old containers on port 3000..."
+                        docker rm -f markdown-app || true
+
+                        USED_CONTAINER=$(docker ps --filter "publish=3000" -q)
+                        if [ ! -z "$USED_CONTAINER" ]; then
+                            docker stop $USED_CONTAINER || true
+                            docker rm $USED_CONTAINER || true
+                        fi
+
+                        echo "🚀 Starting application container..."
+                        docker run -d --name markdown-app -p 3000:3000 ${APP_IMAGE}
+
+                        echo "⏳ Waiting for application to become available..."
+                        sleep 10
+                    '''
+                }
+            }
+        }
+
+        stage('Run Selenium Tests') {
+            steps {
+                script {
+                    sh '''
+                        echo "🧪 Running Selenium tests against app..."
+                        docker run --rm --network host ${TEST_IMAGE}
+                    '''
                 }
             }
         }
     }
 
     post {
-        always {
-            script {
-                if (currentBuild.result == 'FAILURE') {
-                    echo "❌ Build Failed."
-                } else {
-                    echo "✅ Build Succeeded."
-                }
-            }
+        success {
+            echo 'Mark-Down-Blog application and tests ran successfully.'
+        }
+        failure {
+            echo 'Mark-Down-Blog pipeline failed.'
         }
     }
 }
