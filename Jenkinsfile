@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        APP_REPO = 'https://github.com/MuzammilHuxain/Assignment-03-DevOps'
-        TEST_REPO = 'https://github.com/MuzammilHuxain/Assignment-03-DevOps-TestCases'
+        APP_REPO = 'https://github.com/your-username/Mark-Down-Blog.git'
+        TEST_REPO = 'https://github.com/your-username/Mark-Down-Blog-Tests.git'
         APP_IMAGE = 'markdown-blog-app'
         TEST_IMAGE = 'markdown-blog-tests'
     }
@@ -49,7 +49,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        echo "Cleaning up any old containers on port 3000..."
+                        echo "🔄 Cleaning up any old containers on port 3000..."
                         docker rm -f markdown-app || true
 
                         USED_CONTAINER=$(docker ps --filter "publish=3000" -q)
@@ -82,10 +82,10 @@ pipeline {
 
     post {
         success {
-            echo 'Mark-Down-Blog application and tests ran successfully.'
+            echo '✅ Mark-Down-Blog application and tests ran successfully.'
         }
         failure {
-            echo 'Mark-Down-Blog pipeline failed.'
+            echo '❌ Mark-Down-Blog pipeline failed.'
         }
     }
 }
