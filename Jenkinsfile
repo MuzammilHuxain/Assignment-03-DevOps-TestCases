@@ -20,8 +20,7 @@ pipeline {
             steps {
                 script {
                     echo "Building Docker image for the Node.js application..."
-                    // Assuming your app.js Dockerfile is named Dockerfile.app in the root
-                    // If it's just 'Dockerfile' you can remove '-f Dockerfile.app'
+                    // Assuming Dockerfile for app is in the root and named 'Dockerfile'
                     sh "docker build -t ${APP_IMAGE} -f Dockerfile ."
                 }
             }
@@ -31,9 +30,11 @@ pipeline {
             steps {
                 script {
                     echo "Building Docker image for Selenium tests..."
-                    // Assuming your selenium_test.py Dockerfile is in a 'tests' directory
-                    // and named Dockerfile.selenium. Adjust path and filename as needed.
-                    sh "docker build -t ${TEST_IMAGE} -f selenium_test.py.dockerfile ."
+                    // Corrected: Assuming 'tests/' subdirectory contains 'Dockerfile.selenium',
+                    // 'selenium_test.py', and 'requirements.txt'.
+                    // -f tests/Dockerfile.selenium: Specifies the Dockerfile path.
+                    // tests/: Sets the build context to the 'tests' directory.
+                    sh "docker build -t ${TEST_IMAGE} -f tests/Dockerfile.selenium tests/"
                 }
             }
         }
@@ -55,13 +56,9 @@ pipeline {
                         // Start the Node.js application container
                         // --name: Assigns a name for easy reference and network resolution
                         // --network: Connects the container to our custom network
-                        // -p 3000:3000: (Optional) Publishes port 3000 from container to host.
-                        //              Not strictly needed for inter-container comms on same network,
-                        //              but useful for local debugging or external access.
                         sh "docker run -d --name ${APP_IMAGE} --network ${DOCKER_NETWORK} -p 3000:3000 ${APP_IMAGE}"
 
                         // Wait for the Node.js application to fully start
-                        // Adjust sleep duration or consider implementing a robust health check
                         echo "Waiting for Node.js app to start..."
                         sleep 15 // Increased sleep slightly for robustness
 
