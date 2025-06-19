@@ -14,7 +14,7 @@ pipeline {
                     sh '''
                         echo "🧹 Cleaning up previous containers and networks..."
                         docker-compose -p ${COMPOSE_PROJECT_NAME} down --volumes --remove-orphans || true
-                        docker system prune -f || true
+                        docker system prune -f -a --volumes || true
                     '''
                 }
             }
@@ -36,18 +36,18 @@ pipeline {
             }
         }
 
-        stage('Setup Docker Compose') {
+        stage('Generate Docker Compose File') {
             steps {
                 script {
-                    writeFile file: 'docker-compose.yml', text: '''
+                    writeFile file: 'docker-compose.yml', text: """
 version: '3.8'
 
 services:
   app:
-    build: 
+    build:
       context: ./app
       dockerfile: Dockerfile
-    container_name: markdown-app-''' + env.BUILD_NUMBER + '''
+    container_name: markdown-app-${BUILD_NUMBER}
     ports:
       - "3000:3000"
     environment:
@@ -57,19 +57,19 @@ services:
       - PORT=3000
     depends_on:
       mongo:
-        condition: service_started
+        condition: service_healthy
     networks:
       - app-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3000/auth/login || exit 1"]
-      interval: 15s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 20s
 
   mongo:
     image: mongo:5.0
-    container_name: markdown-mongo-''' + env.BUILD_NUMBER + '''
+    container_name: markdown-mongo-${BUILD_NUMBER}
     networks:
       - app-network
     tmpfs:
@@ -82,24 +82,24 @@ services:
       start_period: 5s
 
   tests:
-    build: 
+    build:
       context: ./tests
       dockerfile: Dockerfile
-    container_name: markdown-tests-''' + env.BUILD_NUMBER + '''
+    container_name: markdown-tests-${BUILD_NUMBER}
     depends_on:
       app:
         condition: service_healthy
       mongo:
         condition: service_healthy
-    networks:
-      - app-network
     environment:
       - BASE_URL=http://app:3000
+    networks:
+      - app-network
 
 networks:
   app-network:
     driver: bridge
-'''
+"""
                 }
             }
         }
@@ -108,31 +108,21 @@ networks:
             steps {
                 script {
                     sh '''
-                        echo "🏗️ Building and starting services..."
-                        
-                        # Build images
+                        echo "🏗️ Building images..."
                         docker-compose -p ${COMPOSE_PROJECT_NAME} build --no-cache
-                        
-                        # Start MongoDB first
-                        echo "🍃 Starting MongoDB..."
-                        docker-compose -p ${COMPOSE_PROJECT_NAME} up -d mongo
-                        
-                        # Wait for MongoDB to be ready
-                        echo "⏳ Waiting for MongoDB to be ready..."
-                        timeout 60 docker-compose -p ${COMPOSE_PROJECT_NAME} exec -T mongo mongosh --eval "db.adminCommand('ping')" --quiet
-                        
-                        # Start the application
-                        echo "🚀 Starting application..."
-                        docker-compose -p ${COMPOSE_PROJECT_NAME} up -d app
-                        
-                        # Wait for application health check
-                        echo "⏳ Waiting for application to be healthy..."
-                        timeout 120 sh -c 'until docker-compose -p ${COMPOSE_PROJECT_NAME} ps app | grep -q "healthy"; do
-                            echo "Waiting for app health check..."
+
+                        echo "🚀 Starting all services..."
+                        docker-compose -p ${COMPOSE_PROJECT_NAME} up -d
+
+                        echo "⏳ Waiting for application to become healthy..."
+                        timeout 120s sh -c '
+                          until docker inspect --format="{{.State.Health.Status}}" markdown-app-${BUILD_NUMBER} | grep -q healthy; do
+                            echo "Waiting for app..."
                             sleep 5
-                        done'
-                        
-                        echo "✅ All services are ready!"
+                          done
+                        '
+
+                        echo "✅ Application is healthy!"
                     '''
                 }
             }
@@ -157,18 +147,17 @@ networks:
                     echo "📋 Collecting logs..."
                     docker-compose -p ${COMPOSE_PROJECT_NAME} logs app || true
                     docker-compose -p ${COMPOSE_PROJECT_NAME} logs mongo || true
-                    
+
                     echo "🧹 Cleaning up containers and networks..."
                     docker-compose -p ${COMPOSE_PROJECT_NAME} down --volumes --remove-orphans || true
                 '''
             }
         }
         success {
-            echo '✅ Mark-Down-Blog application and tests ran successfully.'
+            echo '✅ Markdown-Blog application and tests ran successfully.'
         }
         failure {
-            echo '❌ Mark-Down-Blog pipeline failed.'
+            echo '❌ Markdown-Blog pipeline failed.'
         }
     }
 }
-    
