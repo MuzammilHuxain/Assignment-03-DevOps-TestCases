@@ -7,7 +7,7 @@ import time
 # ---------------------
 # ✅ Base URL Configuration
 # ---------------------
-BASE_URL = "http://localhost:3000"
+BASE_URL = "http://3.80.55.165:3000"
 
 # ---------------------
 # ✅ Setup Chrome Options for Headless Ubuntu
